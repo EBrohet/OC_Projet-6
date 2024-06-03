@@ -1,6 +1,7 @@
 const Book = require('../models/Book');
 const fs = require('fs');
 
+// route POST pour la création d'un nouveau livre
 exports.createBook = (req, res, next) => {
   const bookObject = JSON.parse(req.body.book);
   delete bookObject._id;
@@ -17,6 +18,7 @@ exports.createBook = (req, res, next) => {
     .catch((error) => res.status(400).json({ error }));
 };
 
+// route POST pour la publication des notes
 exports.rateBook = (req, res, next) => {
   Book.findOne({ _id: req.params.id })
     .then((book) => {
@@ -33,6 +35,7 @@ exports.rateBook = (req, res, next) => {
       const newRating = { userId, grade };
       book.ratings.push(newRating);
 
+      // calcul de la note moyenne
       let sum = 0;
       for (let i = 0; i < book.ratings.length; i++) {
         sum += book.ratings[i].grade;
@@ -47,10 +50,22 @@ exports.rateBook = (req, res, next) => {
     .catch((error) => res.status(400).json({ error }));
 };
 
+// route GET pour afficher les 3 livres les mieux notés
 exports.bestRating = (req, res, next) => {
-  Book.find();
+  Book.find()
+    .then((books) => {
+      // tri par ordre décroissant
+      const ratedBooks = books.sort((a, b) =>
+        b.averageRating - a.averageRating
+      );
+      const bestRatedBooks = ratedBooks.slice(0, 3);
+      return bestRatedBooks;
+    })
+    .then((bestRatedBooks) => res.status(200).json(bestRatedBooks))
+    .catch((error) => res.status(400).json({ error }));
 };
 
+// route PUT pour modifier un livre
 exports.modifyBook = (req, res, next) => {
   const bookObject = req.file ? {
     ...JSON.parse(req.body.book),
@@ -61,8 +76,9 @@ exports.modifyBook = (req, res, next) => {
   Book.findOne({ _id: req.params.id })
     .then((book) => {
       if (book.userId != req.auth.userId) {
-        res.status(401).json({ message: "Non-autorisé" });
+        res.status(403).json({ message: "Non-autorisé" });
       } else {
+        // suppression du fichier image modifié
         const filename = book.imageUrl.split('/images/')[1];
         req.file &&
           fs.unlink(`images/${filename}`, (err) => {
@@ -81,6 +97,7 @@ exports.modifyBook = (req, res, next) => {
     });
 };
 
+// route DELETE pour supprimer un livre
 exports.deleteBook = (req, res, next) => {
   Book.findOne({ _id: req.params.id })
     .then((book) => {
@@ -100,12 +117,14 @@ exports.deleteBook = (req, res, next) => {
     });
 };
 
+// route GET pour afficher la page d'un livre
 exports.getOneBook = (req, res, next) => {
   Book.findOne({ _id: req.params.id })
     .then((book) => res.status(200).json(book))
     .catch((error) => res.status(404).json({ error }));
 };
 
+// route GET pour afficher tous les livres
 exports.getAllBooks = (req, res, next) => {
   Book.find()
     .then((books) => res.status(200).json(books))
